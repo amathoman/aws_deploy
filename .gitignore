@@ -1,0 +1,7 @@
+*.retry
+*.log
+*.pem
+vars/*
+!vars/main.yml
+workshops
+

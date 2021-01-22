@@ -9,7 +9,7 @@
   ec2:
     key_name: "{{ ec2_ssh_key_name }}"
     group:
-      - web_servers_SG
+      - "{{ ec2_security_group }}"
     instance_type: "{{ ec2_windows_instance_type }}"
     exact_count: 1
     count_tag:

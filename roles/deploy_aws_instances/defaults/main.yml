@@ -18,6 +18,7 @@ ec2_image_names:
 ec2_region: ap-southeast-2
 ec2_ssh_key_name: Matho_SSH_May2020
 ec2_vpc_subnet_id: subnet-0b84c8d601ee3257d  #Demo_Subnet
+ec2_security_group: web_servers_SG
 ec2_windows_instance_type: "t2.medium" 
 ec2_linux_instance_type: "t2.medium" 
 
