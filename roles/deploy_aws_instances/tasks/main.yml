@@ -1,0 +1,146 @@
+---
+# tasks file for deploy_ec2_instances
+
+
+- include_tasks: find_ami_ids.yml
+
+
+- name: Windows | Launch instances
+  ec2:
+    key_name: "{{ ec2_ssh_key_name }}"
+    group:
+      - web_servers_SG
+    instance_type: "{{ ec2_windows_instance_type }}"
+    exact_count: 1
+    count_tag:
+      Name: "{{ server_name }}{{ item }}"
+    instance_tags:
+      Name: "{{ server_name }}{{ item }}"
+      App: "{{ app_name }}"
+      Provision_Date: "{{ create_date }}"
+      OS_Type: "{{ os_type }}"
+    image: "{{ ec2_ami_ids[ec2_windows_server_ami_type] }}"
+    wait: true
+    region: "{{ ec2_region }}"
+    vpc_subnet_id: "{{ ec2_vpc_subnet_id }}"
+    user_data: "{{ lookup('template', 'win_ec2_user_data.j2', template_vars=dict(vm_name=server_name + item)) }}"
+    assign_public_ip: yes
+  with_sequence: count=1
+  register: windows_jobs
+  async: 7200
+  poll: 0
+  when: os_type == 'windows'
+
+- name: Linux | Launch instances
+  ec2:
+    key_name: "{{ ec2_ssh_key_name }}"
+    group:
+      - web_servers_SG
+    instance_type: "{{ ec2_linux_instance_type }}"
+    exact_count: 1
+    count_tag:
+      Name: "{{ linux_server_name }}{{ item }}"
+    instance_tags:
+      Name: "{{ linux_server_name }}{{ item }}"
+      no_daily_shutdown: 'false'
+      App: "{{ app_name }}"
+      Provision_Date: "{{ create_date }}"
+      OS_Type: "{{ os_type }}"
+    image: "{{ ec2_ami_ids[ec2_linux_instance_ami_type] }}"
+    wait: true
+    region: "{{ ec2_region }}"
+    vpc_subnet_id: "{{ ec2_vpc_subnet_id }}"
+    #user_data: "{{ lookup('template', 'linux_ec2_user_data.j2') }}"
+    assign_public_ip: yes
+  with_sequence: count=1
+  register: linux_jobs
+  async: 7200
+  poll: 0
+  when: os_type == 'linux'
+
+
+
+################### Wait for Jobs ###################
+
+- name: Windows | Wait for instance creation to complete
+  async_status: jid="{{ item.ansible_job_id }}"
+  register: windows_instances
+  until: windows_instances.finished
+  retries: 300
+  with_items: "{{ windows_jobs.results }}"
+  when: os_type == 'windows'
+
+- name: debug - show something
+  debug:
+    var: windows_instances.results
+  #with_items: "{{ windows_instances.results | map(attribute='tagged_instances') | list }}"
+
+
+
+- name: Linux | Wait for instance creation to complete
+  async_status: jid="{{ item.ansible_job_id }}"
+  register: linux_instances
+  until: linux_instances.finished
+  retries: 300
+  with_items: "{{ linux_jobs.results }}"
+  when: os_type == 'linux'
+
+
+- name: Windows | Obtain windows passwords for instances
+  ec2_win_password:
+    region: '{{ ec2_region }}'
+    instance_id: "{{ item.id }}"
+    key_file: "Matho_SSH_May2020.pem"
+    wait: yes
+    wait_timeout: 300
+  with_items: "{{ windows_instances.results | map(attribute='tagged_instances') | list }}"
+  register: ec2windows_password
+  when: windows_instances is defined and os_type == 'windows'
+
+
+
+- name: Windows Servers | Add new instance to host group
+  add_host:
+    hostname: "{{ item.item.tags.Name }}"
+    ansible_host: "{{ item.item.public_ip }}"
+    ansible_port: "{{ '22' if (windows_ansible_connection is defined and windows_ansible_connection == 'ssh') else '5986' }}"
+    ansible_user: "Administrator"
+    ansible_password: "{{ item.win_password }}"
+    ansible_connection: "{{ windows_ansible_connection | default('winrm') }}"
+    ansible_shell_type: "cmd"
+    private_ip: "{{ item.item.private_ip }}"
+    ansible_winrm_transport: "{{ ansible_winrm_transport }}"
+    ansible_winrm_server_cert_validation: "{{ ansible_winrm_server_cert_validation }}"
+    ansible_winrm_operation_timeout_sec: "{{ ansible_winrm_operation_timeout_sec }}"
+    ansible_winrm_read_timeout_sec: "{{ ansible_winrm_read_timeout_sec }}"
+    groups: windows
+  with_items: "{{ ec2windows_password.results }}"
+  when: ec2windows_password is defined and os_type == 'windows'
+
+
+- name: Linux Servers | Add new instance to host group
+  add_host:
+    hostname: "{{ item.tags.Name }}"
+    ansible_user: "{{ root_user }}"
+    ansible_ssh_private_key_file: "{{ playbook_dir }}/Matho_SSH_May2020.pem"
+    ansible_host: "{{ item.public_ip }}"
+    private_ip: "{{ item.private_ip }}"
+    groups: linux
+  with_items: "{{ linux_instances.results | map(attribute='tagged_instances') | list }}"
+  when: linux_instances is defined and os_type == 'linux'     
+
+
+
+- name: Wait for connection on all linux nodes
+  wait_for_connection:
+  delegate_to: "{{ item }}"
+  with_items:
+    - "{{ groups['linux'] }}"
+  when: os_type == 'linux'
+
+- name: Wait for connection on all Windows nodes
+  wait_for_connection:
+  delegate_to: "{{ item }}"
+  with_items:
+    - "{{ groups['windows'] }}"
+  when: os_type == 'windows'

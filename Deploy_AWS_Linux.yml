@@ -1,0 +1,28 @@
+---
+- name: Provision New AWS Linux Instances
+  hosts: localhost
+  connection: local
+
+  gather_facts: true
+  
+  # vars_files:
+  #   - [ 'vars/main.yml' ]
+
+  vars:
+    os_type: "linux"
+
+  tasks:
+
+    - name:
+      debug:
+        msg: "os_type = {{ os_type }}"
+
+    - set_fact:
+        create_date: "{{ ansible_date_time.epoch }}"
+      when: create_date is not defined
+    
+
+
+    - include_role:
+        name: "deploy_aws_instances"
+    

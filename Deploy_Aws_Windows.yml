@@ -1,0 +1,55 @@
+---
+
+# PLAY 1:  Provision Windows
+
+- name: Provision New Windows Instances
+  hosts: localhost
+  gather_facts: true
+
+  # vars_files:
+  #   - [ 'vars/main.yml' ]
+
+  vars:
+    os_type: "windows"
+
+  tasks:
+
+
+
+    - set_fact:
+        create_date: "{{ ansible_date_time.epoch }}"
+      when: create_date is not defined
+
+
+
+    - include_role:
+        name: "deploy_aws_instances"
+
+
+  
+# PLAY 2:  Manage New Windows Instances
+
+- name: Manage Newly Created Windows Instances
+  hosts: windows
+  gather_facts: true
+
+  tasks:
+
+    - name: Set Server Details
+      set_fact:
+        server_details: " {{ ansible_hostname }}  {{ ansible_os_name }}"
+
+    - name: Show Host OS
+      debug:
+        msg: "{{ server_details }}"
+     
+    - name: Create Admin User
+      win_user:
+        name: hilfigert
+        password: Ansible123!     # test this with Machine Password
+        groups:
+          - Administrators
+        state: present
+
+
+

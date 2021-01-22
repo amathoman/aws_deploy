@@ -1,0 +1,3 @@
+local_ports: '80,443'
+action: Allow
+rule_name: Allow Incoming Web Ports

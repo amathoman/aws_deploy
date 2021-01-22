@@ -1,0 +1,18 @@
+---
+- name: Install IIS
+  #hosts filter used when coming from a provision template
+  hosts: "{{ hosts_filter_windows | default('all') }}"
+  gather_facts: true
+
+  tasks:
+
+    - include_role:
+        name: "windows_iis"
+
+    - include_role:
+        name: "windows_firewall"
+
+        
+    - name: Show webserver details
+      debug: 
+        msg: "The Server is available at http://{{ ansible_host }}"

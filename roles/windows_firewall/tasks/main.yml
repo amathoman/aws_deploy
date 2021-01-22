@@ -1,0 +1,21 @@
+
+- name: Enable firewall for Domain, Public and Private profiles
+  win_firewall:
+    state: enabled
+    profiles:
+    - Domain
+    - Private
+    - Public
+  tags: enable_firewall
+
+- name: Firewall | {{ action }}  incoming ports
+  win_firewall_rule:
+    name: "{{ rule_name }}"
+    enable: yes
+    state: present
+    localport: "{{ local_ports }}"
+    remoteport: any
+    action: "{{ action }}"
+    direction: in
+    protocol: TCP
+    profile: Public,Private,Domain
