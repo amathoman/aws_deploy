@@ -1,6 +1,6 @@
 *.retry
 *.log
-*.pem
+*.pemx
 vars/*
 !vars/main.yml
 workshops
