@@ -1,3 +1,5 @@
+ANSIBLE_HOST_KEY_CHECKING: false
+
 # EC2 OS Images
 # Edit these two lines to select desired os image
 ec2_windows_server_ami_type: win2016_full
